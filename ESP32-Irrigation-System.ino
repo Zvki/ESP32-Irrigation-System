@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
+#include "config.h"
+
 // Ustawienia wyświetlacza OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -21,16 +23,14 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define SENS0193PIN 4
 
-const char* ssid = "TELPOL-10686";        // Nazwa sieci Wi-Fi
-const char* password = "u4433nzmhy";  // Hasło sieci Wi-Fi
+WebServer server(80); 
 
-WebServer server(80); // Tworzy serwer na porcie 80
-
-const int AirSENS0193 = 3000;  // Wartość dla suchego powietrza
-const int WaterSENS0193 = 1500; // Wartość dla pełnego zanurzenia
+const int AirSENS0193 = 3000;  
+const int WaterSENS0193 = 1500; 
 
 int soilMoistureValue = 0;
 int soilMoisturePercent = 0;
+int soilMoistureThreshold = 20;
 
 float temperature = 0.0f;
 float humidity = 0.0f;
@@ -50,24 +50,19 @@ void DisplayMsg(String msg, int time, int size){
 
 void setup() {
     Serial.begin(115200);
-
-    // Inicjalizacja magistrali I2C (GPIO8 jako SDA, GPIO7 jako SCL)
     Wire.begin(8, 7);
 
-        // Inicjalizacja wyświetlacza OLED z SSD1306_SWITCHCAPVCC
     if (!display.begin(SSD1306_SWITCHCAPVCC, I2C_ADDRESS)) {
         Serial.println(F("Nie można zainicjalizować wyświetlacza OLED"));
-        while (true); // Zatrzymaj program w przypadku błędu
+        while (true); 
     }
 
     WiFiSetup();
 
     ServerSetup();
 
-    // Inicjalizacja czujnika DHT
     dht.begin();
 
-    // Wyświetlenie komunikatu startowego
     DisplayMsg("Hello!", 2000, 2);
 }
 
@@ -95,7 +90,7 @@ void ServerSetup(){
                       "<head>"
                       "<meta charset=\"UTF-8\">"
                       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-                      "<title>Monitor ESP32</title>"
+                      "<title>Irrigation System Monitor</title>"
                       "<style>"
                       "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
                       "h1 { color: #333; }"
@@ -105,38 +100,94 @@ void ServerSetup(){
                       "</head>"
                       "<body>"
                       "<div class=\"container\">"
-                      "<h1>Witaj w monitorze ESP32</h1>"
+                      "<h1>Welcome to Irrigation System Monitor</h1>"
                       "<h2>Temperature: </h2>"
                       "<p class=\"reading\">" + readings[0] + " C</p>"
                       "<h2>Humidity: </h2>"
                       "<p class=\"reading\">" + readings[1] + " %</p>"
                       "<h2>SoilMoisture: </h2>"
                       "<p class=\"reading\">" + readings[2] + " %</p>"
+                      "<h2>Current Threshold: </h2>"
+                      "<p class=\"reading\">" + String(soilMoistureThreshold) + " %</p>"
+                      "<form action=\"/set-threshold\" method=\"POST\">"
+                      "<h2><label for=\"threshold\">Set new threshold (%):</label></h2>"
+                      "<input type=\"number\" id=\"threshold\" name=\"threshold\" min=\"0\" max=\"100\" required><br><br>"
+                      "<button type=\"submit\">Update Threshold</button>"
+                      "</form>"
                       "</div>"
                       "</body>"
                       "</html>";
-
-        // Wysyłanie strony HTML do klienta
         server.send(200, "text/html", page);
+
+        server.on("/set-threshold", HTTP_POST, []() {
+    if (server.hasArg("threshold")) {
+        soilMoistureThreshold = server.arg("threshold").toInt();
+        String page = "<!DOCTYPE html>"
+                      "<html lang=\"en\">"
+                      "<head>"
+                      "<meta charset=\"UTF-8\">"
+                      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                      "<title>Threshold Updated</title>"
+                      "<style>"
+                      "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
+                      ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
+                      "h1 { color: #333; }"
+                      "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
+                      "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
+                      "a:hover { text-decoration: underline; }"
+                      "</style>"
+                      "</head>"
+                      "<body>"
+                      "<div class=\"container\">"
+                      "<h1>Threshold Updated</h1>"
+                      "<p>Threshold updated to: " + String(soilMoistureThreshold) + " %</p>"
+                      "<a href=\"/\">Return</a>"
+                      "</div>"
+                      "</body>"
+                      "</html>";
+        server.send(200, "text/html", page);
+    } else {
+        String page = "<!DOCTYPE html>"
+                      "<html lang=\"en\">"
+                      "<head>"
+                      "<meta charset=\"UTF-8\">"
+                      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                      "<title>Threshold Updated</title>"
+                      "<style>"
+                      "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
+                      ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
+                      "h1 { color: #333; }"
+                      "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
+                      "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
+                      "a:hover { text-decoration: underline; }"
+                      "</style>"
+                      "</head>"
+                      "<body>"
+                      "<div class=\"container\">"
+                      "<h1>Missing threshold parameter</h1>"
+                      "<a href=\"/\">Return</a>"
+                      "</div>"
+                      "</body>"
+                      "</html>";
+        server.send(400, "text/html", page);
+    }
+
+});
     });
 
     server.begin();
 }
 
 void SoilHumSensor() {
-    // Odczyt z czujnika wilgotności gleby
     soilMoistureValue = analogRead(SENS0193PIN);
 
-    // Sprawdzenie, czy czujnik jest podłączony i w zakresie
     if (soilMoistureValue < 1300 || soilMoistureValue > 3300) {
         DisplayMsg("Brak SENS0193!", 2000, 1);
-        return; // Opuszczenie funkcji, jeśli czujnik jest poza zakresem
+        return;
     }
 
-    // Obliczanie wilgotności w procentach
     soilMoisturePercent = map(soilMoistureValue, WaterSENS0193, AirSENS0193, 100, 0);
 
-    // Wyświetlenie wilgotności na OLED
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
@@ -150,14 +201,12 @@ void SoilHumSensor() {
 }
 
 void TempHumSensor(){
-    temperature = dht.readTemperature(); // Odczyt temperatury w °C
-    humidity = dht.readHumidity();      // Odczyt wilgotności w %
+    temperature = dht.readTemperature(); 
+    humidity = dht.readHumidity();      
 
-    // Sprawdzenie poprawności odczytów
     if (isnan(temperature) || isnan(humidity)) {
         Serial.println(F("Nie można odczytać danych z DHT11"));
     } else {
-        // Wyświetlenie danych na OLED
         display.clearDisplay();
         display.setTextSize(1);
         display.setCursor(0, 0);
@@ -183,7 +232,7 @@ String* getReadings(){
 
 void loop() {
     server.handleClient();
-    TempHumSensor();  // Odczyt danych z DHT11
-    delay(5000);  // Opóźnienie dla DHT11
-    SoilHumSensor();  // Odczyt wilgotności gleby
+    TempHumSensor(); 
+    delay(5000);  
+    SoilHumSensor();  
 }
