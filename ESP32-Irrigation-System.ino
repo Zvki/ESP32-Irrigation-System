@@ -105,7 +105,7 @@ void ServerSetup(){
                       "<p class=\"reading\">" + readings[0] + " C</p>"
                       "<h2>Humidity: </h2>"
                       "<p class=\"reading\">" + readings[1] + " %</p>"
-                      "<h2>SoilMoisture: </h2>"
+                      "<h2>Soil Moisture: </h2>"
                       "<p class=\"reading\">" + readings[2] + " %</p>"
                       "<h2>Current Threshold: </h2>"
                       "<p class=\"reading\">" + String(soilMoistureThreshold) + " %</p>"

@@ -1,0 +1,3 @@
+[submodule "ESP32-Irrigation-System-Schematic"]
+	path = ESP32-Irrigation-System-Schematic
+	url = https://github.com/Zvki/ESP32-Irrigation-System-Schematic
