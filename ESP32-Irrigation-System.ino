@@ -23,7 +23,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define SENS0193PIN 4
 
-WebServer server(80); 
+WebServer server(81); 
 
 const int AirSENS0193 = 3000;  
 const int WaterSENS0193 = 1500; 
