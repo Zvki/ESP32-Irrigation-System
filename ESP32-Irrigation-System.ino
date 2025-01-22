@@ -27,13 +27,12 @@ WebServer server(81);
 
 unsigned long lastTempHumCheck = 0;
 unsigned long lastSoilHumCheck = 0;
-const unsigned long tempHumInterval = 3000; // 3 sekundy
-const unsigned long soilHumInterval = 3000; // 3 sekundy
+const unsigned long tempHumInterval = 3000;
+const unsigned long soilHumInterval = 3000;
 
-unsigned long lastDisplayUpdate = 0; // Znacznik czasu dla wyświetlacza
-const unsigned long displayInterval = 3000; // Interwał aktualizacji wyświetlacza (3 sekundy)
-int displayState = 0; // Stan wyświetlacza: 0 = temperatura/wilgotność, 1 = wilgotność gleby
-
+unsigned long lastDisplayUpdate = 0;
+const unsigned long displayInterval = 3000;
+int displayState = 0; 
 
 const int AirSENS0193 = 3000;  
 const int WaterSENS0193 = 1500; 
@@ -95,8 +94,7 @@ void WiFiSetup(){
 
 void ServerSetup(){
     server.on("/", HTTP_GET, []() {
-        String* readings = getReadings(); // Pobranie wskaźnika do tablicy odczytów
-        // Tworzenie strony HTML z dynamicznymi odczytami
+        String* readings = getReadings();
         String page = "<!DOCTYPE html>"
                       "<html lang=\"en\">"
                       "<head>"
@@ -201,18 +199,45 @@ void TempHumSensor() {
 void SoilHumSensor() {
     soilMoistureValue = analogRead(SENS0193PIN);
 
-    if (soilMoistureValue < 1300 || soilMoistureValue > 3300) {
-        DisplayMsg("Brak SENS0193!", 2000, 1);
-        return;
-    }
-
     soilMoisturePercent = map(soilMoistureValue, WaterSENS0193, AirSENS0193, 100, 0);
 
     if (soilMoisturePercent > soilMoistureThreshold) {
-        digitalWrite(20, LOW); // Wyłączenie pompy
+        digitalWrite(20, LOW);
     } else {
-        digitalWrite(20, HIGH); // Włączenie pompy
+        digitalWrite(20, HIGH);
     }
+}
+
+void TempHumDisplay(){
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println(F("DHT11 Odczyt:"));
+  display.setTextSize(2);
+  display.setCursor(0, 16);
+  display.print(temperature);
+  display.print(F(" C"));
+  display.setCursor(0, 40);
+  display.print(humidity);
+  display.print(F(" %"));
+  display.display();
+}
+
+void SoilHumDisplay(){
+
+  if (soilMoistureValue < 1300 || soilMoistureValue > 3300) {
+    DisplayMsg("Brak SENS0193!", 2000, 1);
+  }else{
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println(F("SENS0193 Odczyt:"));
+    display.setTextSize(2);
+    display.setCursor(0, 16);
+    display.print(soilMoisturePercent);
+    display.print(F(" %"));
+    display.display();
+  }
 }
 
 String* getReadings(){
@@ -224,53 +249,28 @@ String* getReadings(){
 }
 
 void loop() {
-    server.handleClient(); // Obsługa klienta HTTP w pętli non-stop
+    server.handleClient();
 
     unsigned long currentMillis = millis();
 
-    // Sprawdzanie temperatury i wilgotności co 3 sekundy
     if (currentMillis - lastTempHumCheck >= tempHumInterval) {
         lastTempHumCheck = currentMillis;
-        TempHumSensor(); // Aktualizacja danych
+        TempHumSensor();
     }
 
-    // Sprawdzanie wilgotności gleby co 3 sekundy
     if (currentMillis - lastSoilHumCheck >= soilHumInterval) {
         lastSoilHumCheck = currentMillis;
-        SoilHumSensor(); // Aktualizacja danych
+        SoilHumSensor();
     }
 
-    // Aktualizacja wyświetlacza OLED co 3 sekundy
     if (currentMillis - lastDisplayUpdate >= displayInterval) {
         lastDisplayUpdate = currentMillis;
         if (displayState == 0) {
-            // Wyświetlanie temperatury i wilgotności
-            display.clearDisplay();
-            display.setTextSize(1);
-            display.setCursor(0, 0);
-            display.println(F("DHT11 Odczyt:"));
-            display.setTextSize(2);
-            display.setCursor(0, 16);
-            display.print(temperature);
-            display.print(F(" C"));
-            display.setCursor(0, 40);
-            display.print(humidity);
-            display.print(F(" %"));
-            display.display();
+            TempHumDisplay();
         } else if (displayState == 1) {
-            // Wyświetlanie wilgotności gleby
-            display.clearDisplay();
-            display.setTextSize(1);
-            display.setCursor(0, 0);
-            display.println(F("SENS0193 Odczyt:"));
-            display.setTextSize(2);
-            display.setCursor(0, 16);
-            display.print(soilMoisturePercent);
-            display.print(F(" %"));
-            display.display();
+            SoilHumDisplay();
         }
 
-        // Przełączanie stanu wyświetlacza
-        displayState = (displayState + 1) % 2; // Przełączaj między 0 a 1
+        displayState = (displayState + 1) % 2;
     }
 }
