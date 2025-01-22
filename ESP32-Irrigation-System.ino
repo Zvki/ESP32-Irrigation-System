@@ -25,6 +25,16 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 WebServer server(81); 
 
+unsigned long lastTempHumCheck = 0;
+unsigned long lastSoilHumCheck = 0;
+const unsigned long tempHumInterval = 3000; // 3 sekundy
+const unsigned long soilHumInterval = 3000; // 3 sekundy
+
+unsigned long lastDisplayUpdate = 0; // Znacznik czasu dla wyświetlacza
+const unsigned long displayInterval = 3000; // Interwał aktualizacji wyświetlacza (3 sekundy)
+int displayState = 0; // Stan wyświetlacza: 0 = temperatura/wilgotność, 1 = wilgotność gleby
+
+
 const int AirSENS0193 = 3000;  
 const int WaterSENS0193 = 1500; 
 
@@ -120,64 +130,72 @@ void ServerSetup(){
                       "</body>"
                       "</html>";
         server.send(200, "text/html", page);
+    });
 
-        server.on("/set-threshold", HTTP_POST, []() {
-    if (server.hasArg("threshold")) {
-        soilMoistureThreshold = server.arg("threshold").toInt();
-        String page = "<!DOCTYPE html>"
-                      "<html lang=\"en\">"
-                      "<head>"
-                      "<meta charset=\"UTF-8\">"
-                      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-                      "<title>Threshold Updated</title>"
-                      "<style>"
-                      "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
-                      ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
-                      "h1 { color: #333; }"
-                      "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
-                      "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
-                      "a:hover { text-decoration: underline; }"
-                      "</style>"
-                      "</head>"
-                      "<body>"
-                      "<div class=\"container\">"
-                      "<h1>Threshold Updated</h1>"
-                      "<p>Threshold updated to: " + String(soilMoistureThreshold) + " %</p>"
-                      "<a href=\"/\">Return</a>"
-                      "</div>"
-                      "</body>"
-                      "</html>";
-        server.send(200, "text/html", page);
-    } else {
-        String page = "<!DOCTYPE html>"
-                      "<html lang=\"en\">"
-                      "<head>"
-                      "<meta charset=\"UTF-8\">"
-                      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-                      "<title>Threshold Updated</title>"
-                      "<style>"
-                      "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
-                      ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
-                      "h1 { color: #333; }"
-                      "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
-                      "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
-                      "a:hover { text-decoration: underline; }"
-                      "</style>"
-                      "</head>"
-                      "<body>"
-                      "<div class=\"container\">"
-                      "<h1>Missing threshold parameter</h1>"
-                      "<a href=\"/\">Return</a>"
-                      "</div>"
-                      "</body>"
-                      "</html>";
-        server.send(400, "text/html", page);
-    }
-
-});
+    server.on("/set-threshold", HTTP_POST, []() {
+        if (server.hasArg("threshold")) {
+            soilMoistureThreshold = server.arg("threshold").toInt();
+            String page = "<!DOCTYPE html>"
+                          "<html lang=\"en\">"
+                          "<head>"
+                          "<meta charset=\"UTF-8\">"
+                          "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                          "<title>Threshold Updated</title>"
+                          "<style>"
+                          "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
+                          ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
+                          "h1 { color: #333; }"
+                          "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
+                          "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
+                          "a:hover { text-decoration: underline; }"
+                          "</style>"
+                          "</head>"
+                          "<body>"
+                          "<div class=\"container\">"
+                          "<h1>Threshold Updated</h1>"
+                          "<p>Threshold updated to: " + String(soilMoistureThreshold) + " %</p>"
+                          "<a href=\"/\">Return</a>"
+                          "</div>"
+                          "</body>"
+                          "</html>";
+            server.send(200, "text/html", page);
+        } else {
+            String page = "<!DOCTYPE html>"
+                          "<html lang=\"en\">"
+                          "<head>"
+                          "<meta charset=\"UTF-8\">"
+                          "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                          "<title>Threshold Updated</title>"
+                          "<style>"
+                          "body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }"
+                          ".container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }"
+                          "h1 { color: #333; }"
+                          "p { font-size: 1.2em; color: #007BFF; margin: 20px 0; }"
+                          "a { text-decoration: none; color: #007BFF; font-size: 1em; }"
+                          "a:hover { text-decoration: underline; }"
+                          "</style>"
+                          "</head>"
+                          "<body>"
+                          "<div class=\"container\">"
+                          "<h1>Missing threshold parameter</h1>"
+                          "<a href=\"/\">Return</a>"
+                          "</div>"
+                          "</body>"
+                          "</html>";
+            server.send(400, "text/html", page);
+        }
     });
 
     server.begin();
+}
+
+void TempHumSensor() {
+    temperature = dht.readTemperature();
+    humidity = dht.readHumidity();
+
+    if (isnan(temperature) || isnan(humidity)) {
+        Serial.println(F("Nie można odczytać danych z DHT11"));
+    } 
 }
 
 void SoilHumSensor() {
@@ -190,37 +208,10 @@ void SoilHumSensor() {
 
     soilMoisturePercent = map(soilMoistureValue, WaterSENS0193, AirSENS0193, 100, 0);
 
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println(F("SENS0193 Odczyt:"));
-    display.setTextSize(2);
-    display.setCursor(0, 16);
-    display.print(soilMoisturePercent);
-    display.print(F(" %"));
-    display.display();
-    delay(5000);
-}
-
-void TempHumSensor(){
-    temperature = dht.readTemperature(); 
-    humidity = dht.readHumidity();      
-
-    if (isnan(temperature) || isnan(humidity)) {
-        Serial.println(F("Nie można odczytać danych z DHT11"));
+    if (soilMoisturePercent > soilMoistureThreshold) {
+        digitalWrite(20, LOW); // Wyłączenie pompy
     } else {
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setCursor(0, 0);
-        display.println(F("DHT11 Odczyt:"));
-        display.setTextSize(2);
-        display.setCursor(0, 16);
-        display.print(temperature);
-        display.print(F(" C"));
-        display.setCursor(0, 40);
-        display.print(humidity);
-        display.print(F(" %"));
-        display.display();
+        digitalWrite(20, HIGH); // Włączenie pompy
     }
 }
 
@@ -233,16 +224,53 @@ String* getReadings(){
 }
 
 void loop() {
-    server.handleClient();
-    TempHumSensor(); 
-    delay(5000);  
-    SoilHumSensor();
+    server.handleClient(); // Obsługa klienta HTTP w pętli non-stop
 
-    digitalWrite(20, HIGH);  // Ustawienie stanu wysokiego na porcie 13 (3.3V lub 5V, w zależności od płytki)
-    Serial.println("20 is up");
-    
-    delay(5000);             // Utrzymanie stanu wysokiego przez 1 sekundę
-    digitalWrite(20, LOW);
+    unsigned long currentMillis = millis();
 
-    Serial.println("20 is down");  
+    // Sprawdzanie temperatury i wilgotności co 3 sekundy
+    if (currentMillis - lastTempHumCheck >= tempHumInterval) {
+        lastTempHumCheck = currentMillis;
+        TempHumSensor(); // Aktualizacja danych
+    }
+
+    // Sprawdzanie wilgotności gleby co 3 sekundy
+    if (currentMillis - lastSoilHumCheck >= soilHumInterval) {
+        lastSoilHumCheck = currentMillis;
+        SoilHumSensor(); // Aktualizacja danych
+    }
+
+    // Aktualizacja wyświetlacza OLED co 3 sekundy
+    if (currentMillis - lastDisplayUpdate >= displayInterval) {
+        lastDisplayUpdate = currentMillis;
+        if (displayState == 0) {
+            // Wyświetlanie temperatury i wilgotności
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setCursor(0, 0);
+            display.println(F("DHT11 Odczyt:"));
+            display.setTextSize(2);
+            display.setCursor(0, 16);
+            display.print(temperature);
+            display.print(F(" C"));
+            display.setCursor(0, 40);
+            display.print(humidity);
+            display.print(F(" %"));
+            display.display();
+        } else if (displayState == 1) {
+            // Wyświetlanie wilgotności gleby
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setCursor(0, 0);
+            display.println(F("SENS0193 Odczyt:"));
+            display.setTextSize(2);
+            display.setCursor(0, 16);
+            display.print(soilMoisturePercent);
+            display.print(F(" %"));
+            display.display();
+        }
+
+        // Przełączanie stanu wyświetlacza
+        displayState = (displayState + 1) % 2; // Przełączaj między 0 a 1
+    }
 }
