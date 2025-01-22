@@ -61,6 +61,8 @@ void setup() {
 
     ServerSetup();
 
+    pinMode(20, OUTPUT);
+
     dht.begin();
 
     DisplayMsg("Hello!", 2000, 2);
@@ -234,5 +236,13 @@ void loop() {
     server.handleClient();
     TempHumSensor(); 
     delay(5000);  
-    SoilHumSensor();  
+    SoilHumSensor();
+
+    digitalWrite(20, HIGH);  // Ustawienie stanu wysokiego na porcie 13 (3.3V lub 5V, w zależności od płytki)
+    Serial.println("20 is up");
+    
+    delay(5000);             // Utrzymanie stanu wysokiego przez 1 sekundę
+    digitalWrite(20, LOW);
+
+    Serial.println("20 is down");  
 }
